@@ -12,7 +12,12 @@ const globalForPrisma = globalThis as unknown as {
 export const prisma =
   globalForPrisma.prisma ??
   new PrismaClient({
-    adapter: new PrismaPg({ connectionString }),
+    adapter: new PrismaPg({
+      connectionString,
+      max: 5,
+      idleTimeoutMillis: 60_000,
+      connectionTimeoutMillis: 10_000,
+    }),
   });
 
 if (process.env.NODE_ENV !== "production") {

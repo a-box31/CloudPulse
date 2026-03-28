@@ -32,7 +32,7 @@ export async function establishConnection(port: number): Promise<string> {
     console.log("[tunnel] Could not detect public IP");
   }
 
-  // 3. Last resort: localhost (only works on LAN)
+  // 3. Last resort: localhost (only works on same machine)
   console.log("[tunnel] No public route available, using localhost");
   return `http://localhost:${port}`;
 }
