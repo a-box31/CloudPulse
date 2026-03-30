@@ -5,18 +5,32 @@ let renewalTimer: ReturnType<typeof setInterval> | null = null;
 let natClient: any = null;
 
 /**
- * Detect the first non-internal IPv4 address on a LAN interface.
+ * Detect the best LAN IPv4 address.
+ * Prefers real LAN interfaces (192.168.x / 10.x) over virtual bridges (172.x).
  */
 export function getLanUrl(port: number): string | null {
   const interfaces = os.networkInterfaces();
+  let fallback: string | null = null;
+
   for (const name of Object.keys(interfaces)) {
     for (const iface of interfaces[name]!) {
-      // Skip internal (loopback) and non-IPv4
       if (iface.internal || iface.family !== "IPv4") continue;
-      return `http://${iface.address}:${port}`;
+
+      const ip = iface.address;
+
+      // Prefer 192.168.x.x or 10.x.x.x — these are almost always real LAN
+      if (ip.startsWith("192.168.") || ip.startsWith("10.")) {
+        return `http://${ip}:${port}`;
+      }
+
+      // 172.16-31.x.x could be LAN but is often Docker/virtual — keep as fallback
+      if (!fallback) {
+        fallback = `http://${ip}:${port}`;
+      }
     }
   }
-  return null;
+
+  return fallback;
 }
 
 /**
@@ -48,8 +62,14 @@ export async function establishConnection(port: number): Promise<string> {
     console.log("[tunnel] Could not detect public IP");
   }
 
-  // 3. Last resort: localhost (only works on same machine)
-  console.log("[tunnel] No public route available, using localhost");
+  // 3. Last resort: LAN IP (only reachable on the local network)
+  const lanUrl = getLanUrl(port);
+  if (lanUrl) {
+    console.log(`[tunnel] No public route available, using LAN: ${lanUrl}`);
+    return lanUrl;
+  }
+
+  console.log("[tunnel] No network route available");
   return `http://localhost:${port}`;
 }
 
