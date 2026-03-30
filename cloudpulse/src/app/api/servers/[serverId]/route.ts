@@ -9,16 +9,22 @@ export async function GET(
   request: NextRequest,
   { params }: { params: Promise<{ serverId: string }> }
 ) {
+  const token = request.headers
+    .get("authorization")
+    ?.replace("Bearer ", "");
+
+  if (!token) {
+    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  }
+
+  let payload;
   try {
-    const token = request.headers
-      .get("authorization")
-      ?.replace("Bearer ", "");
+    payload = await verifyAccessToken(token);
+  } catch {
+    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  }
 
-    if (!token) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-    }
-
-    const payload = await verifyAccessToken(token);
+  try {
     const { serverId } = await params;
 
     const server = await prisma.server.findFirst({
@@ -42,8 +48,12 @@ export async function GET(
     }
 
     return NextResponse.json({ server });
-  } catch {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  } catch (error) {
+    console.error("GET /api/servers/[serverId] error:", error);
+    return NextResponse.json(
+      { error: "Internal server error" },
+      { status: 500 }
+    );
   }
 }
 
@@ -54,16 +64,22 @@ export async function DELETE(
   request: NextRequest,
   { params }: { params: Promise<{ serverId: string }> }
 ) {
+  const token = request.headers
+    .get("authorization")
+    ?.replace("Bearer ", "");
+
+  if (!token) {
+    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  }
+
+  let payload;
   try {
-    const token = request.headers
-      .get("authorization")
-      ?.replace("Bearer ", "");
+    payload = await verifyAccessToken(token);
+  } catch {
+    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  }
 
-    if (!token) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-    }
-
-    const payload = await verifyAccessToken(token);
+  try {
     const { serverId } = await params;
 
     const server = await prisma.server.findFirst({
@@ -80,7 +96,11 @@ export async function DELETE(
     await prisma.server.delete({ where: { id: serverId } });
 
     return NextResponse.json({ success: true });
-  } catch {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  } catch (error) {
+    console.error("DELETE /api/servers/[serverId] error:", error);
+    return NextResponse.json(
+      { error: "Internal server error" },
+      { status: 500 }
+    );
   }
 }

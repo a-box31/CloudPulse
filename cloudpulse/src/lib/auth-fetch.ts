@@ -1,5 +1,4 @@
 let refreshPromise: Promise<string | null> | null = null;
-let redirecting = false;
 
 async function refreshAccessToken(): Promise<string | null> {
   try {
@@ -19,24 +18,12 @@ async function refreshAccessToken(): Promise<string | null> {
   }
 }
 
-function redirectToLogin(): Response {
-  if (!redirecting) {
-    redirecting = true;
-    localStorage.removeItem("accessToken");
-    document.cookie = "accessToken=; path=/; max-age=0; samesite=lax";
-    window.location.href = "/login";
-  }
-  return new Response(null, { status: 401 });
-}
-
 export async function authFetch(
   input: RequestInfo | URL,
   init?: RequestInit
 ): Promise<Response> {
-  // Already redirecting to login — don't fire more requests
-  if (redirecting) return new Response(null, { status: 401 });
+  let token = localStorage.getItem("accessToken");
 
-  const token = localStorage.getItem("accessToken");
   if (!token) {
     // No token at all — try a refresh before giving up
     if (!refreshPromise) {
@@ -44,18 +31,21 @@ export async function authFetch(
         refreshPromise = null;
       });
     }
-    const freshToken = await refreshPromise;
-    if (!freshToken) return redirectToLogin();
+    token = await refreshPromise;
+    if (!token) {
+      window.location.href = "/login";
+      return new Response(null, { status: 401 });
+    }
   }
 
   const headers = new Headers(init?.headers);
-  headers.set("Authorization", `Bearer ${localStorage.getItem("accessToken")}`);
+  headers.set("Authorization", `Bearer ${token}`);
 
   const res = await fetch(input, { ...init, headers });
 
   if (res.status !== 401) return res;
 
-  // Deduplicate concurrent refresh calls
+  // Token expired — try to refresh
   if (!refreshPromise) {
     refreshPromise = refreshAccessToken().finally(() => {
       refreshPromise = null;
@@ -63,7 +53,12 @@ export async function authFetch(
   }
 
   const newToken = await refreshPromise;
-  if (!newToken) return redirectToLogin();
+  if (!newToken) {
+    localStorage.removeItem("accessToken");
+    document.cookie = "accessToken=; path=/; max-age=0; samesite=lax";
+    window.location.href = "/login";
+    return res;
+  }
 
   // Retry with the new token
   headers.set("Authorization", `Bearer ${newToken}`);

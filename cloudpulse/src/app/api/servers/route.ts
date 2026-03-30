@@ -6,17 +6,22 @@ import { verifyAccessToken, generateApiKey } from "@/lib/auth";
  * GET /api/servers — List all servers for the authenticated user.
  */
 export async function GET(request: NextRequest) {
+  const token = request.headers
+    .get("authorization")
+    ?.replace("Bearer ", "");
+
+  if (!token) {
+    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  }
+
+  let payload;
   try {
-    const token = request.headers
-      .get("authorization")
-      ?.replace("Bearer ", "");
+    payload = await verifyAccessToken(token);
+  } catch {
+    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  }
 
-    if (!token) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-    }
-
-    const payload = await verifyAccessToken(token);
-
+  try {
     const servers = await prisma.server.findMany({
       where: { userId: payload.sub },
       select: {
@@ -32,8 +37,12 @@ export async function GET(request: NextRequest) {
     });
 
     return NextResponse.json({ servers });
-  } catch {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  } catch (error) {
+    console.error("GET /api/servers error:", error);
+    return NextResponse.json(
+      { error: "Internal server error" },
+      { status: 500 }
+    );
   }
 }
 
@@ -42,16 +51,22 @@ export async function GET(request: NextRequest) {
  * Returns the serverId and apiKey (shown once to the user).
  */
 export async function POST(request: NextRequest) {
+  const token = request.headers
+    .get("authorization")
+    ?.replace("Bearer ", "");
+
+  if (!token) {
+    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  }
+
+  let payload;
   try {
-    const token = request.headers
-      .get("authorization")
-      ?.replace("Bearer ", "");
+    payload = await verifyAccessToken(token);
+  } catch {
+    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  }
 
-    if (!token) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-    }
-
-    const payload = await verifyAccessToken(token);
+  try {
     const { name } = await request.json();
 
     if (!name) {
@@ -78,7 +93,11 @@ export async function POST(request: NextRequest) {
         apiKey, // Only shown once at creation
       },
     });
-  } catch {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  } catch (error) {
+    console.error("POST /api/servers error:", error);
+    return NextResponse.json(
+      { error: "Internal server error" },
+      { status: 500 }
+    );
   }
 }
