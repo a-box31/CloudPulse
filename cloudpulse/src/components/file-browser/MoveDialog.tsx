@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { authFetch } from "@/lib/auth-fetch";
 
 interface MoveDialogProps {
   serverId: string;
@@ -27,19 +28,15 @@ export function MoveDialog({
     setError("");
 
     try {
-      const token = localStorage.getItem("accessToken");
       const dest = destination.replace(/\/+$/, "");
 
       for (const filePath of selectedFiles) {
         const fileName = filePath.split("/").pop();
         const to = dest + "/" + fileName;
 
-        const res = await fetch(`/api/files/${serverId}/move`, {
+        const res = await authFetch(`/api/files/${serverId}/move`, {
           method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-            Authorization: `Bearer ${token}`,
-          },
+          headers: { "Content-Type": "application/json" },
           body: JSON.stringify({ from: filePath, to }),
         });
 

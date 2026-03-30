@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
+import { authFetch } from "@/lib/auth-fetch";
 import type { ServerInfo } from "@/types";
 
 export default function DashboardPage() {
@@ -12,10 +13,7 @@ export default function DashboardPage() {
   useEffect(() => {
     async function fetchServers() {
       try {
-        const token = localStorage.getItem("accessToken");
-        const res = await fetch("/api/servers", {
-          headers: { Authorization: `Bearer ${token}` },
-        });
+        const res = await authFetch("/api/servers");
 
         if (res.ok) {
           const data = await res.json();

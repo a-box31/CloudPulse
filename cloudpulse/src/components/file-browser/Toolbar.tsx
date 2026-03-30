@@ -1,6 +1,7 @@
 "use client";
 
 import { useRef, useEffect } from "react";
+import { authFetch } from "@/lib/auth-fetch";
 
 interface ToolbarProps {
   serverId: string;
@@ -42,17 +43,14 @@ export function Toolbar({
     const files = e.target.files;
     if (!files || files.length === 0) return;
 
-    const token = localStorage.getItem("accessToken");
-
     for (const file of Array.from(files)) {
       const formData = new FormData();
       formData.append("file", file);
 
-      await fetch(
+      await authFetch(
         `/api/files/${serverId}/upload?destPath=${encodeURIComponent(currentPath)}`,
         {
           method: "POST",
-          headers: { Authorization: `Bearer ${token}` },
           body: formData,
         }
       );
@@ -66,8 +64,6 @@ export function Toolbar({
     const files = e.target.files;
     if (!files || files.length === 0) return;
 
-    const token = localStorage.getItem("accessToken");
-
     for (const file of Array.from(files)) {
       const relativePath = (file as File & { webkitRelativePath: string }).webkitRelativePath;
       // relativePath is like "folderName/subfolder/file.txt"
@@ -78,11 +74,10 @@ export function Toolbar({
       const formData = new FormData();
       formData.append("file", file);
 
-      await fetch(
+      await authFetch(
         `/api/files/${serverId}/upload?destPath=${encodeURIComponent(destPath)}`,
         {
           method: "POST",
-          headers: { Authorization: `Bearer ${token}` },
           body: formData,
         }
       );

@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect, useRef } from "react";
+import { authFetch } from "@/lib/auth-fetch";
 import type { FileInfo } from "@/types";
 
 interface FilePreviewProps {
@@ -35,10 +36,7 @@ export function FilePreview({ file, serverId, onClose }: FilePreviewProps) {
       file.mimeType === "application/x-yaml"
     ) {
       setLoading(true);
-      const token = localStorage.getItem("accessToken");
-      fetch(streamUrl, {
-        headers: { Authorization: `Bearer ${token}` },
-      })
+      authFetch(streamUrl)
         .then((r) => r.text())
         .then((text) => setTextContent(text))
         .catch(() => setTextContent("Failed to load file content"))
@@ -61,6 +59,8 @@ export function FilePreview({ file, serverId, onClose }: FilePreviewProps) {
 
   function handleDownload() {
     const token = localStorage.getItem("accessToken");
+    // Download uses a direct link — token passed as query param since
+    // anchor tags can't set Authorization headers
     const a = document.createElement("a");
     a.href = `${downloadUrl}&token=${token}`;
     a.download = file.name;

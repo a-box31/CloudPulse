@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
+import { authFetch } from "@/lib/auth-fetch";
 import type { ServerInfo } from "@/types";
 
 interface NewServer {
@@ -16,15 +17,9 @@ export default function ManageServersPage() {
   const [loading, setLoading] = useState(true);
   const [adding, setAdding] = useState(false);
 
-  function getToken() {
-    return localStorage.getItem("accessToken") || "";
-  }
-
   async function fetchServers() {
     try {
-      const res = await fetch("/api/servers", {
-        headers: { Authorization: `Bearer ${getToken()}` },
-      });
+      const res = await authFetch("/api/servers");
       if (res.ok) {
         const data = await res.json();
         setServers(data.servers || []);
@@ -46,12 +41,9 @@ export default function ManageServersPage() {
 
     setAdding(true);
     try {
-      const res = await fetch("/api/servers", {
+      const res = await authFetch("/api/servers", {
         method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${getToken()}`,
-        },
+        headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ name: newServerName }),
       });
 
@@ -71,9 +63,8 @@ export default function ManageServersPage() {
   async function handleDeleteServer(serverId: string) {
     if (!confirm("Are you sure? This will unregister this server.")) return;
 
-    await fetch(`/api/servers/${serverId}`, {
+    await authFetch(`/api/servers/${serverId}`, {
       method: "DELETE",
-      headers: { Authorization: `Bearer ${getToken()}` },
     });
 
     fetchServers();
