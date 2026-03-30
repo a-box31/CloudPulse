@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useCallback } from "react";
 import { useRouter } from "next/navigation";
+import { authFetch } from "@/lib/auth-fetch";
 import { FileCard } from "./FileCard";
 import { FolderBreadcrumb } from "./FolderBreadcrumb";
 import { FilePreview } from "./FilePreview";
@@ -37,10 +38,8 @@ export function FileBrowser({ serverId, currentPath }: FileBrowserProps) {
     setError("");
 
     try {
-      const token = localStorage.getItem("accessToken");
-      const res = await fetch(
-        `/api/files/${serverId}?path=${encodeURIComponent(currentPath)}`,
-        { headers: { Authorization: `Bearer ${token}` } }
+      const res = await authFetch(
+        `/api/files/${serverId}?path=${encodeURIComponent(currentPath)}`
       );
 
       if (!res.ok) {
@@ -113,15 +112,10 @@ export function FileBrowser({ serverId, currentPath }: FileBrowserProps) {
       return;
     }
 
-    const token = localStorage.getItem("accessToken");
-
     for (const filePath of selectedFiles) {
-      await fetch(`/api/files/${serverId}/delete`, {
+      await authFetch(`/api/files/${serverId}/delete`, {
         method: "DELETE",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${token}`,
-        },
+        headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ path: filePath }),
       });
     }

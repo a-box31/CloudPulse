@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { authFetch } from "@/lib/auth-fetch";
 
 interface CreateFolderDialogProps {
   serverId: string;
@@ -27,16 +28,12 @@ export function CreateFolderDialog({
     setError("");
 
     try {
-      const token = localStorage.getItem("accessToken");
       const folderPath =
         currentPath.replace(/\/+$/, "") + "/" + name.trim();
 
-      const res = await fetch(`/api/files/${serverId}/mkdir`, {
+      const res = await authFetch(`/api/files/${serverId}/mkdir`, {
         method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${token}`,
-        },
+        headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ path: folderPath }),
       });
 
