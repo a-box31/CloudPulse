@@ -1,0 +1,16 @@
+# Example docker-compose for pulling the pre-built cloudpulse backend.
+# Copy this file as docker-compose.yml and fill in your values.
+
+services:
+  cloudpulse:
+    image: cloudpulse-server
+    restart: unless-stopped
+    network_mode: host
+    environment:
+      CLOUD_URL: https://cloudpulse.duckdns.org
+      SERVER_ID: your-server-id
+      API_KEY: your-api-key
+      ROOT_DIR: /data
+      PORT: 4000
+    volumes:
+      - your/host/files/dir:/data

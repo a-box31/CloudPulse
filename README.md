@@ -1,6 +1,6 @@
-# PersonalCloud
+# cloudpulse
 
-Access files from your home server anywhere with PersonalCloud.
+Access files from your home server anywhere with cloudpulse.
 
 A self-hosted cloud storage system with two components:
 
