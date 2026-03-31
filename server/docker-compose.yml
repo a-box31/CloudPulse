@@ -1,6 +1,6 @@
 services:
   backend:
-    image: abox/cloudpulse:0.1.0
+    image: abox31/cloudpulse:0.1.0
     build: .
     restart: unless-stopped
     network_mode: host
