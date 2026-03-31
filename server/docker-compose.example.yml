@@ -3,7 +3,7 @@
 
 services:
   cloudpulse:
-    image: cloudpulse-server
+    image: abox/cloudpulse:0.1.0
     restart: unless-stopped
     network_mode: host
     environment:
