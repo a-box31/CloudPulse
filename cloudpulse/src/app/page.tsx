@@ -153,6 +153,9 @@ export default function Home() {
             <Link href="/docs" className="hover:text-gray-300 transition-colors">
               Docs
             </Link>
+            <a href="https://github.com/a-box31/CloudPulse" target="_blank" rel="noopener noreferrer" className="hover:text-gray-300 transition-colors">
+              GitHub
+            </a>
             <a href="https://hub.docker.com/r/abox31/cloudpulse" target="_blank" rel="noopener noreferrer" className="hover:text-gray-300 transition-colors">
               Docker Hub
             </a>

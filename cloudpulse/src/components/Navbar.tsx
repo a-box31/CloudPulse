@@ -46,6 +46,14 @@ export default function Navbar() {
             Docs
           </Link>
           <a
+            href="https://github.com/a-box31/CloudPulse"
+            target="_blank"
+            rel="noopener noreferrer"
+            className="text-sm text-gray-300 hover:text-white transition-colors"
+          >
+            GitHub
+          </a>
+          <a
             href="https://hub.docker.com/r/abox31/cloudpulse"
             target="_blank"
             rel="noopener noreferrer"
@@ -116,6 +124,14 @@ export default function Navbar() {
           >
             Docs
           </Link>
+          <a
+            href="https://github.com/a-box31/CloudPulse"
+            target="_blank"
+            rel="noopener noreferrer"
+            className="text-sm text-gray-300 hover:text-white transition-colors"
+          >
+            GitHub
+          </a>
           <a
             href="https://hub.docker.com/r/abox31/cloudpulse"
             target="_blank"
