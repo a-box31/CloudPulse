@@ -1,15 +1,16 @@
 "use client";
 
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useMemo } from "react";
 import { useRouter } from "next/navigation";
 import { authFetch } from "@/lib/auth-fetch";
 import { FileCard } from "./FileCard";
 import { FolderBreadcrumb } from "./FolderBreadcrumb";
-import { FilePreview } from "./FilePreview";
 import { Toolbar } from "./Toolbar";
 import { CreateFolderDialog } from "./CreateFolderDialog";
 import { MoveDialog } from "./MoveDialog";
 import type { FileInfo } from "@/types";
+
+export type SortField = "name" | "date" | "size";
 
 interface FileBrowserProps {
   serverId: string;
@@ -22,8 +23,9 @@ export function FileBrowser({ serverId, currentPath }: FileBrowserProps) {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
 
-  // Preview
-  const [previewFile, setPreviewFile] = useState<FileInfo | null>(null);
+  // Sorting
+  const [sortField, setSortField] = useState<SortField>("name");
+  const [sortReversed, setSortReversed] = useState(false);
 
   // Selection
   const [selectionMode, setSelectionMode] = useState(false);
@@ -67,11 +69,35 @@ export function FileBrowser({ serverId, currentPath }: FileBrowserProps) {
     setSelectionMode(false);
   }, [currentPath]);
 
+  const sortedFiles = useMemo(() => {
+    const sorted = [...files].sort((a, b) => {
+      // Directories always come first
+      if (a.isDirectory !== b.isDirectory) return a.isDirectory ? -1 : 1;
+
+      let cmp = 0;
+      switch (sortField) {
+        case "name":
+          cmp = a.name.localeCompare(b.name, undefined, { sensitivity: "base" });
+          break;
+        case "date":
+          cmp = new Date(a.modifiedAt).getTime() - new Date(b.modifiedAt).getTime();
+          break;
+        case "size":
+          cmp = a.sizeBytes - b.sizeBytes;
+          break;
+      }
+      return sortReversed ? -cmp : cmp;
+    });
+    return sorted;
+  }, [files, sortField, sortReversed]);
+
   function handleFileClick(file: FileInfo) {
     if (file.isDirectory) {
       router.push(`/dashboard/${serverId}${file.path}`);
     } else {
-      setPreviewFile(file);
+      const token = localStorage.getItem("token") || "";
+      const streamUrl = `/api/files/${serverId}/stream?path=${encodeURIComponent(file.path)}&token=${encodeURIComponent(token)}`;
+      window.open(streamUrl, "_blank");
     }
   }
 
@@ -125,6 +151,28 @@ export function FileBrowser({ serverId, currentPath }: FileBrowserProps) {
     fetchFiles();
   }
 
+  async function handleRename(file: FileInfo, newName: string) {
+    const parentDir = file.path.substring(0, file.path.lastIndexOf("/")) || "/";
+    const newPath = parentDir === "/" ? `/${newName}` : `${parentDir}/${newName}`;
+
+    try {
+      const res = await authFetch(`/api/files/${serverId}/move`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ from: file.path, to: newPath }),
+      });
+
+      if (!res.ok) {
+        const data = await res.json();
+        alert(data.error || "Failed to rename");
+      }
+    } catch {
+      alert("Network error while renaming");
+    }
+
+    fetchFiles();
+  }
+
   function handleRefresh() {
     fetchFiles();
   }
@@ -138,6 +186,10 @@ export function FileBrowser({ serverId, currentPath }: FileBrowserProps) {
           currentPath={currentPath}
           selectionMode={selectionMode}
           selectedCount={selectedFiles.size}
+          sortField={sortField}
+          sortReversed={sortReversed}
+          onSortChange={setSortField}
+          onSortReversedChange={setSortReversed}
           onToggleSelect={handleToggleSelectionMode}
           onSelectAll={toggleSelectAll}
           onNewFolder={() => setShowCreateFolder(true)}
@@ -177,7 +229,7 @@ export function FileBrowser({ serverId, currentPath }: FileBrowserProps) {
       {/* File list */}
       {!loading && !error && files.length > 0 && (
         <div className="space-y-0.5">
-          {files.map((file) => (
+          {sortedFiles.map((file) => (
             <FileCard
               key={file.path}
               file={file}
@@ -186,18 +238,10 @@ export function FileBrowser({ serverId, currentPath }: FileBrowserProps) {
               selected={selectedFiles.has(file.path)}
               onClick={() => handleFileClick(file)}
               onSelect={() => toggleSelection(file.path)}
+              onRename={handleRename}
             />
           ))}
         </div>
-      )}
-
-      {/* Preview modal */}
-      {previewFile && (
-        <FilePreview
-          file={previewFile}
-          serverId={serverId}
-          onClose={() => setPreviewFile(null)}
-        />
       )}
 
       {/* Create folder dialog */}

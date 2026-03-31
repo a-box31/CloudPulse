@@ -1,5 +1,6 @@
 "use client";
 
+import { useState, useRef, useEffect } from "react";
 import { FileIcon } from "./FileIcon";
 import type { FileInfo } from "@/types";
 
@@ -10,6 +11,7 @@ interface FileCardProps {
   selected?: boolean;
   onClick: () => void;
   onSelect?: () => void;
+  onRename?: (file: FileInfo, newName: string) => void;
 }
 
 function formatSize(bytes: number): string {
@@ -34,7 +36,33 @@ export function FileCard({
   selected,
   onClick,
   onSelect,
+  onRename,
 }: FileCardProps) {
+  const [renaming, setRenaming] = useState(false);
+  const [newName, setNewName] = useState(file.name);
+  const inputRef = useRef<HTMLInputElement>(null);
+
+  useEffect(() => {
+    if (renaming && inputRef.current) {
+      inputRef.current.focus();
+      const dotIndex = file.name.lastIndexOf(".");
+      if (!file.isDirectory && dotIndex > 0) {
+        inputRef.current.setSelectionRange(0, dotIndex);
+      } else {
+        inputRef.current.select();
+      }
+    }
+  }, [renaming, file.name, file.isDirectory]);
+
+  function commitRename() {
+    const trimmed = newName.trim();
+    if (trimmed && trimmed !== file.name && onRename) {
+      onRename(file, trimmed);
+    }
+    setRenaming(false);
+    setNewName(file.name);
+  }
+
   const iconColor = file.isDirectory
     ? "text-blue-400"
     : file.mimeType?.startsWith("image/")
@@ -45,11 +73,26 @@ export function FileCard({
           ? "text-orange-400"
           : "text-gray-400";
 
+  const clickTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+
   function handleClick() {
     if (selectionMode && onSelect) {
       onSelect();
+      return;
+    }
+    if (clickTimer.current) {
+      clearTimeout(clickTimer.current);
+      clickTimer.current = null;
+      // Double click
+      if (onRename) {
+        setNewName(file.name);
+        setRenaming(true);
+      }
     } else {
-      onClick();
+      clickTimer.current = setTimeout(() => {
+        clickTimer.current = null;
+        onClick();
+      }, 250);
     }
   }
 
@@ -85,9 +128,29 @@ export function FileCard({
         />
       </div>
       <div className="flex-1 min-w-0">
-        <p className="text-sm font-medium text-gray-200 truncate">
-          {file.name}
-        </p>
+        {renaming ? (
+          <input
+            ref={inputRef}
+            type="text"
+            value={newName}
+            onChange={(e) => setNewName(e.target.value)}
+            onBlur={commitRename}
+            onKeyDown={(e) => {
+              if (e.key === "Enter") commitRename();
+              if (e.key === "Escape") {
+                setRenaming(false);
+                setNewName(file.name);
+              }
+            }}
+            onClick={(e) => e.stopPropagation()}
+            onDoubleClick={(e) => e.stopPropagation()}
+            className="w-full text-sm font-medium text-gray-200 bg-gray-800 border border-blue-500 rounded px-2 py-0.5 outline-none"
+          />
+        ) : (
+          <p className="text-sm font-medium text-gray-200 truncate">
+            {file.name}
+          </p>
+        )}
         <p className="text-xs text-gray-500">
           {file.isDirectory ? "Folder" : formatSize(file.sizeBytes)}
           {" \u00B7 "}

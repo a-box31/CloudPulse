@@ -11,9 +11,9 @@ export async function POST(
   { params }: { params: Promise<{ serverId: string }> }
 ) {
   try {
-    const token = request.headers
-      .get("authorization")
-      ?.replace("Bearer ", "");
+    const token =
+      request.headers.get("authorization")?.replace("Bearer ", "") ||
+      request.cookies.get("accessToken")?.value;
 
     if (!token) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
@@ -26,15 +26,20 @@ export async function POST(
     const server = await getServerForUser(serverId, payload.sub);
 
     const backendPath = `/files/upload?destPath=${encodeURIComponent(destPath)}`;
-    const fetchOptions = {
+
+    // Buffer the body so it can be retried across URL fallbacks.
+    // A ReadableStream can only be consumed once — without buffering,
+    // the second URL attempt would receive an empty body.
+    const body = await request.arrayBuffer();
+
+    const fetchOptions: RequestInit = {
       method: "POST",
       headers: {
         "X-Server-Key": server.apiKey,
         "Content-Type": request.headers.get("content-type") || "",
       },
-      body: request.body,
-      duplex: "half",
-    } as RequestInit;
+      body,
+    };
 
     // Try public URL → LAN URL → localhost fallback
     let response: Response;

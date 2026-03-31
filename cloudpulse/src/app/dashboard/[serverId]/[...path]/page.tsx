@@ -9,7 +9,7 @@ export default function NestedFolderPage({
   params: Promise<{ serverId: string; path: string[] }>;
 }) {
   const { serverId, path } = use(params);
-  const currentPath = "/" + path.join("/");
+  const currentPath = "/" + path.map(decodeURIComponent).join("/");
 
   return (
     <div className="min-h-screen bg-gray-950">

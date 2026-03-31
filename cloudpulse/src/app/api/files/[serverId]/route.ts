@@ -11,9 +11,9 @@ export async function GET(
   { params }: { params: Promise<{ serverId: string }> }
 ) {
   try {
-    const token = request.headers
-      .get("authorization")
-      ?.replace("Bearer ", "");
+    const token =
+      request.headers.get("authorization")?.replace("Bearer ", "") ||
+      request.cookies.get("accessToken")?.value;
 
     if (!token) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
