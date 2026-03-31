@@ -11,9 +11,13 @@ export async function GET(
   { params }: { params: Promise<{ serverId: string }> }
 ) {
   try {
-    const token = request.headers
-      .get("authorization")
-      ?.replace("Bearer ", "");
+    // Accept token from Authorization header, cookie, or query param.
+    // Browser-initiated requests (<img src>, <video src>) don't send
+    // the Authorization header, so we fall back to the cookie.
+    const token =
+      request.headers.get("authorization")?.replace("Bearer ", "") ||
+      request.cookies.get("accessToken")?.value ||
+      request.nextUrl.searchParams.get("token");
 
     if (!token) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });

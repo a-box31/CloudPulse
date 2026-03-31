@@ -9,3 +9,5 @@ docker-compose.*.yml
 Dockerfile
 Dockerfile.*
 files
+docker-compose.*.yml
+Dockerfile*

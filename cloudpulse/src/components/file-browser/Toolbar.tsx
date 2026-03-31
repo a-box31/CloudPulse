@@ -1,13 +1,18 @@
 "use client";
 
-import { useRef, useEffect } from "react";
+import { useRef, useEffect, useState } from "react";
 import { authFetch } from "@/lib/auth-fetch";
+import type { SortField } from "./FileBrowser";
 
 interface ToolbarProps {
   serverId: string;
   currentPath: string;
   selectionMode: boolean;
   selectedCount: number;
+  sortField: SortField;
+  sortReversed: boolean;
+  onSortChange: (field: SortField) => void;
+  onSortReversedChange: (reversed: boolean) => void;
   onToggleSelect: () => void;
   onSelectAll: () => void;
   onNewFolder: () => void;
@@ -21,6 +26,10 @@ export function Toolbar({
   currentPath,
   selectionMode,
   selectedCount,
+  sortField,
+  sortReversed,
+  onSortChange,
+  onSortReversedChange,
   onToggleSelect,
   onSelectAll,
   onNewFolder,
@@ -30,6 +39,8 @@ export function Toolbar({
 }: ToolbarProps) {
   const fileInputRef = useRef<HTMLInputElement>(null);
   const folderInputRef = useRef<HTMLInputElement>(null);
+  const [uploading, setUploading] = useState(false);
+  const [uploadProgress, setUploadProgress] = useState("");
 
   // Set webkitdirectory attribute (not directly supported in React JSX types)
   useEffect(() => {
@@ -43,48 +54,76 @@ export function Toolbar({
     const files = e.target.files;
     if (!files || files.length === 0) return;
 
-    for (const file of Array.from(files)) {
-      const formData = new FormData();
-      formData.append("file", file);
+    const fileList = Array.from(files);
+    setUploading(true);
 
-      await authFetch(
-        `/api/files/${serverId}/upload?destPath=${encodeURIComponent(currentPath)}`,
-        {
-          method: "POST",
-          body: formData,
+    try {
+      for (let i = 0; i < fileList.length; i++) {
+        const file = fileList[i];
+        setUploadProgress(`${i + 1}/${fileList.length} — ${file.name}`);
+
+        const formData = new FormData();
+        formData.append("file", file);
+
+        const res = await authFetch(
+          `/api/files/${serverId}/upload?destPath=${encodeURIComponent(currentPath)}`,
+          {
+            method: "POST",
+            body: formData,
+          }
+        );
+        if (!res.ok) {
+          const err = await res.json().catch(() => ({ error: "Upload failed" }));
+          alert(`Failed to upload ${file.name}: ${err.error}`);
+          break;
         }
-      );
+      }
+    } finally {
+      setUploading(false);
+      setUploadProgress("");
+      if (fileInputRef.current) fileInputRef.current.value = "";
+      onUploadComplete();
     }
-
-    if (fileInputRef.current) fileInputRef.current.value = "";
-    onUploadComplete();
   }
 
   async function handleFolderUpload(e: React.ChangeEvent<HTMLInputElement>) {
     const files = e.target.files;
     if (!files || files.length === 0) return;
 
-    for (const file of Array.from(files)) {
-      const relativePath = (file as File & { webkitRelativePath: string }).webkitRelativePath;
-      // relativePath is like "folderName/subfolder/file.txt"
-      // Extract the directory portion to preserve folder structure
-      const relativeDir = relativePath.substring(0, relativePath.lastIndexOf("/"));
-      const destPath = currentPath.replace(/\/+$/, "") + "/" + relativeDir;
+    const fileList = Array.from(files);
+    setUploading(true);
 
-      const formData = new FormData();
-      formData.append("file", file);
+    try {
+      for (let i = 0; i < fileList.length; i++) {
+        const file = fileList[i];
+        const relativePath = (file as File & { webkitRelativePath: string }).webkitRelativePath;
+        setUploadProgress(`${i + 1}/${fileList.length} — ${relativePath}`);
 
-      await authFetch(
-        `/api/files/${serverId}/upload?destPath=${encodeURIComponent(destPath)}`,
-        {
-          method: "POST",
-          body: formData,
+        const relativeDir = relativePath.substring(0, relativePath.lastIndexOf("/"));
+        const destPath = currentPath.replace(/\/+$/, "") + "/" + relativeDir;
+
+        const formData = new FormData();
+        formData.append("file", file);
+
+        const res = await authFetch(
+          `/api/files/${serverId}/upload?destPath=${encodeURIComponent(destPath)}`,
+          {
+            method: "POST",
+            body: formData,
+          }
+        );
+        if (!res.ok) {
+          const err = await res.json().catch(() => ({ error: "Upload failed" }));
+          alert(`Failed to upload ${file.name}: ${err.error}`);
+          break;
         }
-      );
+      }
+    } finally {
+      setUploading(false);
+      setUploadProgress("");
+      if (folderInputRef.current) folderInputRef.current.value = "";
+      onUploadComplete();
     }
-
-    if (folderInputRef.current) folderInputRef.current.value = "";
-    onUploadComplete();
   }
 
   return (
@@ -102,7 +141,8 @@ export function Toolbar({
 
       <button
         onClick={() => fileInputRef.current?.click()}
-        className="flex items-center gap-1.5 px-3 py-1.5 text-xs bg-gray-800 hover:bg-gray-700 text-gray-300 rounded-lg transition-colors"
+        disabled={uploading}
+        className="flex items-center gap-1.5 px-3 py-1.5 text-xs bg-gray-800 hover:bg-gray-700 text-gray-300 rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
       >
         <svg className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
           <path strokeLinecap="round" strokeLinejoin="round" d="M3 16.5v2.25A2.25 2.25 0 005.25 21h13.5A2.25 2.25 0 0021 18.75V16.5m-13.5-9L12 3m0 0l4.5 4.5M12 3v13.5" />
@@ -119,7 +159,8 @@ export function Toolbar({
 
       <button
         onClick={() => folderInputRef.current?.click()}
-        className="flex items-center gap-1.5 px-3 py-1.5 text-xs bg-gray-800 hover:bg-gray-700 text-gray-300 rounded-lg transition-colors"
+        disabled={uploading}
+        className="flex items-center gap-1.5 px-3 py-1.5 text-xs bg-gray-800 hover:bg-gray-700 text-gray-300 rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
       >
         <svg className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
           <path strokeLinecap="round" strokeLinejoin="round" d="M12 16.5V9.75m0 0l3 3m-3-3l-3 3M6.75 19.5a4.5 4.5 0 01-1.41-8.775 5.25 5.25 0 0110.338-2.32 3.75 3.75 0 013.572 4.845A4.5 4.5 0 0118.75 19.5H6.75z" />
@@ -132,6 +173,53 @@ export function Toolbar({
         onChange={handleFolderUpload}
         className="hidden"
       />
+
+      {uploading && (
+        <div className="flex items-center gap-2 px-3 py-1.5 text-xs text-blue-400">
+          <svg className="w-4 h-4 animate-spin" viewBox="0 0 24 24" fill="none">
+            <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+            <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
+          </svg>
+          <span>Uploading {uploadProgress}</span>
+        </div>
+      )}
+
+      <div className="w-px h-5 bg-gray-700" />
+
+      {/* Sort controls */}
+      <div className="flex items-center gap-1">
+        {(["name", "date", "size"] as SortField[]).map((field) => (
+          <button
+            key={field}
+            onClick={() => {
+              if (sortField === field) {
+                onSortReversedChange(!sortReversed);
+              } else {
+                onSortChange(field);
+                onSortReversedChange(false);
+              }
+            }}
+            className={`flex items-center gap-1 px-2.5 py-1.5 text-xs rounded-lg transition-colors ${
+              sortField === field
+                ? "bg-gray-700 text-white"
+                : "bg-gray-800 hover:bg-gray-700 text-gray-400"
+            }`}
+          >
+            {field.charAt(0).toUpperCase() + field.slice(1)}
+            {sortField === field && (
+              <svg
+                className={`w-3 h-3 transition-transform ${sortReversed ? "rotate-180" : ""}`}
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="2"
+              >
+                <path strokeLinecap="round" strokeLinejoin="round" d="M19.5 13.5L12 21m0 0l-7.5-7.5M12 21V3" />
+              </svg>
+            )}
+          </button>
+        ))}
+      </div>
 
       <div className="w-px h-5 bg-gray-700" />
 

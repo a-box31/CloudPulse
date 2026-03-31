@@ -52,8 +52,8 @@ export async function proxyToBackend(
       const url = `${server.publicUrl}${path}`;
       const response = await fetch(url, fetchOptions);
       return response;
-    } catch {
-      console.log(`[proxy] Public URL failed: ${server.publicUrl}`);
+    } catch (e) {
+      console.log(`[proxy] Public URL failed: ${server.publicUrl}`, e instanceof Error ? e.message : e);
     }
   }
 
@@ -64,8 +64,8 @@ export async function proxyToBackend(
       console.log(`[proxy] Trying LAN URL: ${url}`);
       const response = await fetch(url, fetchOptions);
       return response;
-    } catch {
-      console.log(`[proxy] LAN URL failed: ${server.lanUrl}`);
+    } catch (e) {
+      console.log(`[proxy] LAN URL failed: ${server.lanUrl}`, e instanceof Error ? e.message : e);
     }
   }
 
