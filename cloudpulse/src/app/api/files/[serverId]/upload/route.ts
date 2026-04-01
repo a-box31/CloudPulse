@@ -27,41 +27,43 @@ export async function POST(
 
     const backendPath = `/files/upload?destPath=${encodeURIComponent(destPath)}`;
 
-    // Buffer the body so it can be retried across URL fallbacks.
-    // A ReadableStream can only be consumed once — without buffering,
-    // the second URL attempt would receive an empty body.
-    const body = await request.arrayBuffer();
-
-    const fetchOptions: RequestInit = {
-      method: "POST",
-      headers: {
-        "X-Server-Key": server.apiKey,
-        "Content-Type": request.headers.get("content-type") || "",
-      },
-      body,
-    };
-
     // Try public URL → LAN URL → localhost fallback
-    let response: Response;
     const urls = [
       server.publicUrl,
       server.lanUrl,
       `http://localhost:${(server.publicUrl && new URL(server.publicUrl).port) || (server.lanUrl && new URL(server.lanUrl).port) || "4000"}`,
     ].filter(Boolean) as string[];
 
-    let lastError: unknown;
+    // Probe each URL with a HEAD request to find a reachable backend,
+    // so we can stream the body (which can only be consumed once).
+    let reachableBase: string | null = null;
     for (const baseUrl of urls) {
       try {
-        response = await fetch(`${baseUrl}${backendPath}`, fetchOptions);
+        await fetch(`${baseUrl}/health`, {
+          method: "HEAD",
+          signal: AbortSignal.timeout(3000),
+        });
+        reachableBase = baseUrl;
         break;
-      } catch (e) {
-        lastError = e;
+      } catch {
         console.log(`[upload] Failed to reach ${baseUrl}, trying next...`);
       }
     }
-    if (!response!) {
-      throw lastError || new Error("All backend URLs unreachable");
+    if (!reachableBase) {
+      throw new Error("All backend URLs unreachable");
     }
+
+    // Stream the body directly to the reachable backend — no buffering.
+    const response = await fetch(`${reachableBase}${backendPath}`, {
+      method: "POST",
+      headers: {
+        "X-Server-Key": server.apiKey,
+        "Content-Type": request.headers.get("content-type") || "",
+      },
+      body: request.body,
+      // @ts-expect-error -- Node fetch supports duplex streaming
+      duplex: "half",
+    });
 
     const data = await response.json();
     return NextResponse.json(data, { status: response.status });
