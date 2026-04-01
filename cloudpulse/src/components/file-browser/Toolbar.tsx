@@ -52,6 +52,58 @@ export function Toolbar({
     }
   }, []);
 
+  /**
+   * Get an upload token and list of backend URLs for direct upload.
+   * This bypasses the Next.js proxy so large files stream directly to the backend.
+   */
+  async function getUploadCredentials(): Promise<{
+    urls: string[];
+    uploadToken: string;
+  }> {
+    const res = await authFetch(`/api/files/${serverId}/upload-token`, {
+      method: "POST",
+    });
+    if (!res.ok) {
+      const err = await res.json().catch(() => ({ error: "Failed to get upload token" }));
+      throw new Error(err.error);
+    }
+    return res.json();
+  }
+
+  /**
+   * Upload a single file directly to the Express backend, trying each URL in order.
+   */
+  async function directUpload(
+    urls: string[],
+    uploadToken: string,
+    file: File,
+    destPath: string
+  ): Promise<void> {
+    const formData = new FormData();
+    formData.append("file", file);
+
+    const backendPath = `/files/upload?destPath=${encodeURIComponent(destPath)}`;
+    let lastError: Error | null = null;
+
+    for (const baseUrl of urls) {
+      try {
+        const res = await fetch(`${baseUrl}${backendPath}`, {
+          method: "POST",
+          headers: { "X-Upload-Token": uploadToken },
+          body: formData,
+        });
+        if (!res.ok) {
+          const err = await res.json().catch(() => ({ error: "Upload failed" }));
+          throw new Error(err.error);
+        }
+        return;
+      } catch (e) {
+        lastError = e instanceof Error ? e : new Error("Upload failed");
+      }
+    }
+    throw lastError ?? new Error("All backend URLs unreachable");
+  }
+
   async function handleUpload(e: React.ChangeEvent<HTMLInputElement>) {
     const files = e.target.files;
     if (!files || files.length === 0) return;
@@ -60,26 +112,15 @@ export function Toolbar({
     setUploading(true);
 
     try {
+      const { urls, uploadToken } = await getUploadCredentials();
+
       for (let i = 0; i < fileList.length; i++) {
         const file = fileList[i];
         setUploadProgress(`${i + 1}/${fileList.length} — ${file.name}`);
-
-        const formData = new FormData();
-        formData.append("file", file);
-
-        const res = await authFetch(
-          `/api/files/${serverId}/upload?destPath=${encodeURIComponent(currentPath)}`,
-          {
-            method: "POST",
-            body: formData,
-          }
-        );
-        if (!res.ok) {
-          const err = await res.json().catch(() => ({ error: "Upload failed" }));
-          alert(`Failed to upload ${file.name}: ${err.error}`);
-          break;
-        }
+        await directUpload(urls, uploadToken, file, currentPath);
       }
+    } catch (err) {
+      alert(`Upload failed: ${err instanceof Error ? err.message : "Unknown error"}`);
     } finally {
       setUploading(false);
       setUploadProgress("");
@@ -96,6 +137,8 @@ export function Toolbar({
     setUploading(true);
 
     try {
+      const { urls, uploadToken } = await getUploadCredentials();
+
       for (let i = 0; i < fileList.length; i++) {
         const file = fileList[i];
         const relativePath = (file as File & { webkitRelativePath: string }).webkitRelativePath;
@@ -104,22 +147,10 @@ export function Toolbar({
         const relativeDir = relativePath.substring(0, relativePath.lastIndexOf("/"));
         const destPath = currentPath.replace(/\/+$/, "") + "/" + relativeDir;
 
-        const formData = new FormData();
-        formData.append("file", file);
-
-        const res = await authFetch(
-          `/api/files/${serverId}/upload?destPath=${encodeURIComponent(destPath)}`,
-          {
-            method: "POST",
-            body: formData,
-          }
-        );
-        if (!res.ok) {
-          const err = await res.json().catch(() => ({ error: "Upload failed" }));
-          alert(`Failed to upload ${file.name}: ${err.error}`);
-          break;
-        }
+        await directUpload(urls, uploadToken, file, destPath);
       }
+    } catch (err) {
+      alert(`Upload failed: ${err instanceof Error ? err.message : "Unknown error"}`);
     } finally {
       setUploading(false);
       setUploadProgress("");

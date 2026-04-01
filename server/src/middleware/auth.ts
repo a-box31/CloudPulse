@@ -1,4 +1,5 @@
 import type { Request, Response, NextFunction } from "express";
+import { createHmac } from "node:crypto";
 import { config } from "../config.js";
 
 /**
@@ -12,10 +13,41 @@ export function validateServerKey(
 ): void {
   const key = req.headers["x-server-key"];
 
-  if (!key || key !== config.apiKey) {
-    res.status(401).json({ error: "Invalid or missing server key" });
+  if (key && key === config.apiKey) {
+    next();
     return;
   }
 
-  next();
+  // Also accept a short-lived upload token for direct client uploads
+  const uploadToken = req.headers["x-upload-token"] as string | undefined;
+  if (uploadToken && validateUploadToken(uploadToken)) {
+    next();
+    return;
+  }
+
+  res.status(401).json({ error: "Invalid or missing server key" });
+}
+
+/**
+ * Validate a short-lived HMAC upload token.
+ * Format: upload:<serverId>:<userId>:<expires>:<signature>
+ */
+function validateUploadToken(token: string): boolean {
+  const lastColon = token.lastIndexOf(":");
+  if (lastColon === -1) return false;
+
+  const data = token.substring(0, lastColon);
+  const signature = token.substring(lastColon + 1);
+
+  // Verify expiry
+  const parts = data.split(":");
+  const expires = parseInt(parts[3], 10);
+  if (isNaN(expires) || Date.now() > expires) return false;
+
+  // Verify HMAC
+  const expected = createHmac("sha256", config.apiKey)
+    .update(data)
+    .digest("hex");
+
+  return signature === expected;
 }
