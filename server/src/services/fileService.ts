@@ -119,6 +119,60 @@ export function moveFile(fromPath: string, toPath: string): void {
 }
 
 /**
+ * Recursively search for files/directories whose name contains the query.
+ */
+export async function searchFiles(
+  query: string,
+  maxResults: number = 50
+): Promise<FileInfo[]> {
+  const rootDir = resolveSafePath("/");
+  const results: FileInfo[] = [];
+  const lowerQuery = query.toLowerCase();
+
+  function walk(dir: string, relativePath: string): void {
+    if (results.length >= maxResults) return;
+
+    let entries: fs.Dirent[];
+    try {
+      entries = fs.readdirSync(dir, { withFileTypes: true });
+    } catch {
+      return;
+    }
+
+    for (const entry of entries) {
+      if (results.length >= maxResults) return;
+      if (entry.name.startsWith(".")) continue;
+
+      const fullPath = path.join(dir, entry.name);
+      const entryRelPath = relativePath === "/" ? `/${entry.name}` : `${relativePath}/${entry.name}`;
+
+      if (entry.name.toLowerCase().includes(lowerQuery)) {
+        try {
+          const stat = fs.statSync(fullPath);
+          results.push({
+            name: entry.name,
+            path: entryRelPath,
+            isDirectory: entry.isDirectory(),
+            mimeType: entry.isDirectory() ? null : mime.lookup(entry.name) || null,
+            sizeBytes: stat.size,
+            modifiedAt: stat.mtime.toISOString(),
+          });
+        } catch {
+          // Skip entries we can't stat
+        }
+      }
+
+      if (entry.isDirectory()) {
+        walk(fullPath, entryRelPath);
+      }
+    }
+  }
+
+  walk(rootDir, "/");
+  return results;
+}
+
+/**
  * Delete a file or directory.
  */
 export function deleteFile(filePath: string): void {

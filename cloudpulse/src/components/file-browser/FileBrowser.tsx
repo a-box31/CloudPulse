@@ -8,6 +8,7 @@ import { FolderBreadcrumb } from "./FolderBreadcrumb";
 import { Toolbar } from "./Toolbar";
 import { CreateFolderDialog } from "./CreateFolderDialog";
 import { MoveDialog } from "./MoveDialog";
+import { SearchDialog } from "./SearchDialog";
 import type { FileInfo } from "@/types";
 
 export type SortField = "name" | "date" | "size";
@@ -34,6 +35,7 @@ export function FileBrowser({ serverId, currentPath }: FileBrowserProps) {
   // Dialogs
   const [showCreateFolder, setShowCreateFolder] = useState(false);
   const [showMoveDialog, setShowMoveDialog] = useState(false);
+  const [showSearch, setShowSearch] = useState(false);
 
   const fetchFiles = useCallback(async () => {
     setLoading(true);
@@ -196,6 +198,7 @@ export function FileBrowser({ serverId, currentPath }: FileBrowserProps) {
           onDelete={handleDelete}
           onMove={() => setShowMoveDialog(true)}
           onUploadComplete={handleRefresh}
+          onSearch={() => setShowSearch(true)}
         />
       </div>
 
@@ -251,6 +254,14 @@ export function FileBrowser({ serverId, currentPath }: FileBrowserProps) {
           currentPath={currentPath}
           onCreated={handleRefresh}
           onClose={() => setShowCreateFolder(false)}
+        />
+      )}
+
+      {/* Search dialog */}
+      {showSearch && (
+        <SearchDialog
+          serverId={serverId}
+          onClose={() => setShowSearch(false)}
         />
       )}
 

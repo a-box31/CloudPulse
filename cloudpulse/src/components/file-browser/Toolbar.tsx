@@ -19,6 +19,7 @@ interface ToolbarProps {
   onDelete: () => void;
   onMove: () => void;
   onUploadComplete: () => void;
+  onSearch: () => void;
 }
 
 export function Toolbar({
@@ -36,6 +37,7 @@ export function Toolbar({
   onDelete,
   onMove,
   onUploadComplete,
+  onSearch,
 }: ToolbarProps) {
   const fileInputRef = useRef<HTMLInputElement>(null);
   const folderInputRef = useRef<HTMLInputElement>(null);
@@ -183,6 +185,17 @@ export function Toolbar({
           <span>Uploading {uploadProgress}</span>
         </div>
       )}
+
+      <button
+        onClick={onSearch}
+        className="flex items-center gap-1.5 px-3 py-1.5 text-xs bg-gray-800 hover:bg-gray-700 text-gray-300 rounded-lg transition-colors"
+      >
+        <svg className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+          <circle cx="11" cy="11" r="8" />
+          <path strokeLinecap="round" d="m21 21-4.3-4.3" />
+        </svg>
+        Search
+      </button>
 
       <div className="w-px h-5 bg-gray-700" />
 

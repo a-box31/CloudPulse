@@ -9,6 +9,7 @@ import {
   makeDirectory,
   moveFile,
   deleteFile,
+  searchFiles,
 } from "../services/fileService.js";
 import { resolveSafePath, PathSecurityError } from "../utils/pathSecurity.js";
 
@@ -35,6 +36,25 @@ filesRouter.get("/list", async (req, res) => {
     const dirPath = (req.query.path as string) || "/";
     const files = await listDirectory(dirPath);
     res.json({ path: dirPath, files });
+  } catch (err) {
+    handleError(err, res);
+  }
+});
+
+/**
+ * GET /files/search?q=photo&limit=50
+ * Search for files and directories by name.
+ */
+filesRouter.get("/search", async (req, res) => {
+  try {
+    const query = req.query.q as string;
+    if (!query || !query.trim()) {
+      res.status(400).json({ error: "q query parameter required" });
+      return;
+    }
+    const limit = Math.min(parseInt(req.query.limit as string) || 50, 200);
+    const results = await searchFiles(query.trim(), limit);
+    res.json({ query, results });
   } catch (err) {
     handleError(err, res);
   }
