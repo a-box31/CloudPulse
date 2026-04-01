@@ -3,9 +3,9 @@ services:
     image: postgres:17-alpine
     restart: unless-stopped
     environment:
-      POSTGRES_USER: cloudpulse
+      POSTGRES_USER: ${DB_USER:-cloudpulse}
       POSTGRES_PASSWORD: ${DB_PASSWORD:-changeme}
-      POSTGRES_DB: cloudpulse-db
+      POSTGRES_DB: ${DB_NAME:-cloudpulse-db}
     volumes:
       - pgdata:/var/lib/postgresql/data
     ports:
@@ -16,7 +16,7 @@ services:
       timeout: 5s
       retries: 5
 
-  frontend:
+  cloudpulse-app:
     build:
       context: .
       dockerfile: Dockerfile.prod
@@ -26,6 +26,17 @@ services:
       DATABASE_URL: ${DATABASE_URL}
       JWT_SECRET: ${JWT_SECRET}
       NODE_ENV: production
+
+  nginxproxymanager:
+    image: jc21/nginx-proxy-manager:latest
+    restart: unless-stopped
+    ports:
+      - "80:80"
+      - "81:81"
+      - "443:443"
+    volumes:
+      - ./nginx/data:/data
+      - ./nginx/letsencrypt:/etc/letsencrypt  
 
 volumes:
   pgdata:

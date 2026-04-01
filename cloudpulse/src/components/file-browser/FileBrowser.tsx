@@ -180,7 +180,7 @@ export function FileBrowser({ serverId, currentPath }: FileBrowserProps) {
   return (
     <div>
       {/* Toolbar */}
-      <div className="mb-4">
+      <div className="sticky top-[57px] z-20 bg-gray-950 pb-4 -mx-6 px-6 pt-4 -mt-4">
         <Toolbar
           serverId={serverId}
           currentPath={currentPath}

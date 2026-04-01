@@ -24,7 +24,7 @@ export async function signAccessToken(
     .setSubject(userId)
     .setIssuer(JWT_ISSUER)
     .setIssuedAt()
-    .setExpirationTime("15m")
+    .setExpirationTime("1d")
     .sign(JWT_SECRET);
 }
 
